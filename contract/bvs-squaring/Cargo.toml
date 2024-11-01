@@ -1,0 +1,34 @@
+[package]
+name = "bvs-squaring"
+version = "2.0.0"
+edition = "2021"
+
+exclude = [
+  "contract.wasm",
+  "hash.txt",
+]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+library = []
+
+[dependencies]
+cosmwasm-schema = "2.0.0"
+cosmwasm-std = "2.0.0"
+cw-storage-plus = "2.0.0"
+cosmwasm-storage = "1.5.2"
+schemars = "0.8.8"
+cw2 = "2.0.0"
+serde = { version = "1.0.137", default-features = false, features = ["derive"] }
+thiserror = { version = "1.0.31" }
+sha2 = { version = "0.10.8", default-features = false }
+hex = "0.4"
+cosmwasm-crypto = "2.1.0"
+cw20 = "2.0.0"
+bech32 = "0.8.0"
+ripemd = "0.1.0"
+
+[dev-dependencies]
+cw-multi-test = "2.0.0"
