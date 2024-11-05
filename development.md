@@ -48,6 +48,7 @@ After run the above command, will output the bvsHash string. The BVSHash will be
 # register operator to delegate manager
 # the approverAddress is the witness of the operator
 # the operatorAddress not be the operator account、the staker account
+# If operator does not want a approver, you can set the approverAddress as 0
 satlayer delegation reg-operator <operatorKeyName> <approverAddress>
 
 # register operator to directory manager
@@ -71,7 +72,8 @@ This step commands need staker account.
 ```shell
 # delegate staker to operator
 # This approver key is the one used when the operator was registered
-satlayer delegation delegate-to <stakerKeyName> <operatorAddress> <approverKeyName>
+# If the operator approver address is 0, you can skip the approverKeyName
+satlayer delegation delegate-to <stakerKeyName> <operatorAddress> [approverKeyName]
 
 # increase token allowance to delegation manager
 satlayer chain increase-token-allowance <stakerKeyName> <cw20TokenAddress> <delegationManagerAddress> <amount>
