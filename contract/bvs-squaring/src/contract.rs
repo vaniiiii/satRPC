@@ -161,6 +161,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
     match msg {
         QueryMsg::GetTaskInput { task_id } => query_task_input(deps, task_id),
         QueryMsg::GetTaskResult { task_id } => query_task_result(deps, task_id),
+        QueryMsg::GetOperatorScore { operator } => query_operator_score(deps, operator),
     }
 }
 
@@ -184,6 +185,15 @@ fn query_task_result(deps: Deps, task_id: u64) -> Result<Binary, ContractError> 
     Err(ContractError::NoValueFound {})
 }
 
+fn query_operator_score(deps: Deps, operator: Addr) -> Result<Binary, ContractError> {
+    let score = OPERATOR_SCORE.may_load(deps.storage, operator)?;
+
+    if let Some(score) = score {
+        return Ok(to_json_binary(&score)?);
+    }
+
+    Err(ContractError::NoValueFound {})
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -465,6 +475,44 @@ mod tests {
         let res = query(deps.as_ref(), env, query_msg).unwrap();
         let value: i64 = from_json(&res).unwrap();
         assert_eq!(value, 84);
+    }
+
+    #[test]
+    fn query_operator_score() {
+        let mut deps = mock_dependencies();
+        let env = mock_env();
+        let info = mock_info("creator", &[]);
+        let msg = InstantiateMsg {
+            aggregator: Addr::unchecked("aggregator"),
+            state_bank: Addr::unchecked("state_bank"),
+            bvs_driver: Addr::unchecked("bvs_driver"),
+        };
+        instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+        // Create a new task and respond to it to increase the operator's score
+        let create_msg = ExecuteMsg::CreateNewTask {
+            input: Addr::unchecked("operator"),
+        };
+        execute(deps.as_mut(), env.clone(), info.clone(), create_msg).unwrap();
+
+        // Respond to the task to update the operator's score
+        let respond_msg = ExecuteMsg::RespondToTask {
+            task_id: 1,
+            result: 1,
+        };
+        let aggregator_info = mock_info("aggregator", &[]);
+        execute(deps.as_mut(), env.clone(), aggregator_info, respond_msg).unwrap();
+
+        // Query the operator's score
+        let operator_addr = Addr::unchecked("operator");
+        let query_msg = QueryMsg::GetOperatorScore {
+            operator: operator_addr,
+        };
+        let res = query(deps.as_ref(), env, query_msg).unwrap();
+
+        // Deserialize the result into the score (i64)
+        let value: i64 = from_json(&res).unwrap();
+        assert_eq!(value, 1);
     }
 }
 /*

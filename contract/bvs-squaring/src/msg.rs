@@ -24,4 +24,7 @@ pub enum QueryMsg {
 
     #[returns(i64)]
     GetTaskResult { task_id: u64 },
+
+    #[returns(i64)]
+    GetOperatorScore { operator: Addr },
 }
