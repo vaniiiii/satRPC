@@ -397,3 +397,9 @@ mod tests {
         assert_eq!(value, 84);
     }
 }
+/*
+babylond tx wasm execute bbn14esj8vqlpugc04k3l30n7td70ywrm5370pp74m64uhr5yujtrs7qnq09ay '{"create_new_task": {"input": 10}}' --from=bvs-operator --gas=auto --gas-prices=1ubbn --gas-adjustment=1.3 --chain-id=sat-bbn-testnet1 -b=sync --yes --log_format=json --node https://rpc.sat-bbn-testnet1.satlayer.net
+babylond tx wasm execute bbn1h9zjs2zr2xvnpngm9ck8ja7lz2qdt5mcw55ud7wkteycvn7aa4pqpghx2q '{"add_registered_bvs_contract":{"address":"bbn1ssjvqd8z7dh93djet606079c6ge7t922lkzyvjgrtjvgrnhgh9cs3lyu6f"}}' --from=bvs-owner --gas=auto --gas-prices=1ubbn --gas-adjustment=1.3 --chain-id=sat-bbn-testnet1 -b=sync --yes --log_format=json --node https://rpc.sat-bbn-testnet1.satlayer.net
+babylond tx wasm instantiate 74 '{"aggregator": "bbn14awtreyhrhnq97dzsyngepax8gu9qtxysap3wz", "state_bank": "bbn1h9zjs2zr2xvnpngm9ck8ja7lz2qdt5mcw55ud7wkteycvn7aa4pqpghx2q", "bvs_driver": "bbn18x5lx5dda7896u074329fjk4sflpr65s036gva65m4phavsvs3rqk5e59c"}' --from=bvs-owner --no-admin --label="demo" --gas=auto --gas-prices=1ubbn --gas-adjustment=1.3 --chain-id=sat-bbn-testnet1 -b=sync --yes --log_format=json --node https://rpc.sat-bbn-testnet1.satlayer.net
+curl -s -X GET "https://lcd1.sat-bbn-testnet1.satlayer.net/cosmwasm/wasm/v1/code/74/contracts" -H "accept: application/json" | jq -r '.contracts[-1]'
+ */
