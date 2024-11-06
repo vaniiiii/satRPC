@@ -5,7 +5,7 @@ use crate::{
 };
 
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, CosmosMsg, Deps, DepsMut, Env, Event, MessageInfo,
+    entry_point, to_json_binary, Addr, Binary, CosmosMsg, Deps, DepsMut, Env, Event, MessageInfo,
     Response, WasmMsg,
 };
 use cw2::set_contract_version;
@@ -49,7 +49,7 @@ pub fn execute(
 fn create_new_task(
     deps: DepsMut,
     _info: MessageInfo,
-    input: i64,
+    input: Addr,
 ) -> Result<Response, ContractError> {
     let id = MAX_ID.may_load(deps.storage)?;
     let new_id = id.unwrap_or(0) + 1;
@@ -226,9 +226,9 @@ mod tests {
             bvs_driver: Addr::unchecked("bvs_driver"),
         };
         instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
-
-        // Create a new task
-        let create_msg = ExecuteMsg::CreateNewTask { input: 42 };
+        let create_msg = ExecuteMsg::CreateNewTask {
+            input: Addr::unchecked("operator"),
+        };
         let res = execute(deps.as_mut(), env, info, create_msg).unwrap();
 
         // Check if the task was created successfully
@@ -239,7 +239,10 @@ mod tests {
         assert_eq!(MAX_ID.load(deps.as_ref().storage).unwrap(), 1);
 
         // Check if the task was saved
-        assert_eq!(CREATED_TASKS.load(deps.as_ref().storage, 1).unwrap(), 42);
+        assert_eq!(
+            CREATED_TASKS.load(deps.as_ref().storage, 1).unwrap(),
+            Addr::unchecked("operator")
+        );
 
         // Check if the correct messages were created
         let state_bank_msg = &res.messages[0];
@@ -254,7 +257,7 @@ mod tests {
                 match parsed_msg {
                     ExecuteMsg::Set { key, value } => {
                         assert_eq!(key, "taskId.1");
-                        assert_eq!(value, "42");
+                        assert_eq!(value, Addr::unchecked("operator").to_string());
                     }
                     _ => panic!("Unexpected message type"),
                 }
@@ -292,7 +295,9 @@ mod tests {
         instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
         // Create a new task
-        let create_msg = ExecuteMsg::CreateNewTask { input: 42 };
+        let create_msg = ExecuteMsg::CreateNewTask {
+            input: Addr::unchecked("operator"),
+        };
         execute(deps.as_mut(), env.clone(), info, create_msg).unwrap();
 
         // Respond to the task
@@ -324,7 +329,9 @@ mod tests {
         instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
         // Create a new task
-        let create_msg = ExecuteMsg::CreateNewTask { input: 42 };
+        let create_msg = ExecuteMsg::CreateNewTask {
+            input: Addr::unchecked("operator"),
+        };
         execute(deps.as_mut(), env.clone(), info, create_msg).unwrap();
 
         // Try to respond to the task with an unauthorized address
@@ -356,14 +363,16 @@ mod tests {
         instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
         // Create a new task
-        let create_msg = ExecuteMsg::CreateNewTask { input: 42 };
+        let create_msg = ExecuteMsg::CreateNewTask {
+            input: Addr::unchecked("operator"),
+        };
         execute(deps.as_mut(), env.clone(), info, create_msg).unwrap();
 
         // Query the task input
         let query_msg = QueryMsg::GetTaskInput { task_id: 1 };
         let res = query(deps.as_ref(), env, query_msg).unwrap();
-        let value: i64 = from_json(&res).unwrap();
-        assert_eq!(value, 42);
+        let value: String = from_json(&res).unwrap();
+        assert_eq!(value, Addr::unchecked("operator").to_string());
     }
 
     #[test]
@@ -379,7 +388,9 @@ mod tests {
         instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
         // Create a new task
-        let create_msg = ExecuteMsg::CreateNewTask { input: 42 };
+        let create_msg = ExecuteMsg::CreateNewTask {
+            input: Addr::unchecked("operator"),
+        };
         execute(deps.as_mut(), env.clone(), info, create_msg).unwrap();
 
         // Respond to the task

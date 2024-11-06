@@ -10,7 +10,7 @@ pub struct InstantiateMsg {
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    CreateNewTask { input: i64 },
+    CreateNewTask { input: Addr },
     RespondToTask { task_id: u64, result: i64 },
     Set { key: String, value: String },
     ExecuteBvsOffchain { task_id: String },
