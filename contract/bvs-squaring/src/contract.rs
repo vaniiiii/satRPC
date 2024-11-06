@@ -1,7 +1,9 @@
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
-    state::{AGGREGATOR, BVS_DRIVER, CREATED_TASKS, MAX_ID, RESPONDED_TASKS, STATE_BANK},
+    state::{
+        AGGREGATOR, BVS_DRIVER, CREATED_TASKS, MAX_ID, OPERATOR_SCORE, RESPONDED_TASKS, STATE_BANK,
+    },
 };
 
 use cosmwasm_std::{
@@ -123,6 +125,24 @@ fn respond_to_task(
 
     // save task result
     RESPONDED_TASKS.save(deps.storage, task_id, &result)?;
+
+    // fetch operator address for the task
+    let operator = CREATED_TASKS.load(deps.storage, task_id)?;
+
+    // update the operator's score based on the result
+    OPERATOR_SCORE.update(
+        deps.storage,
+        operator.clone(),
+        |score| -> Result<_, ContractError> {
+            let current_score = score.unwrap_or(0); // Default score is 0 if not set
+            let updated_score = if result == 1 {
+                current_score + 1
+            } else {
+                current_score - 1
+            };
+            Ok(updated_score)
+        },
+    )?;
 
     // emit event
     let event = Event::new("TaskResponded")
@@ -294,26 +314,65 @@ mod tests {
         };
         instantiate(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
-        // Create a new task
-        let create_msg = ExecuteMsg::CreateNewTask {
+        // Create the first task
+        let create_msg_1 = ExecuteMsg::CreateNewTask {
             input: Addr::unchecked("operator"),
         };
-        execute(deps.as_mut(), env.clone(), info, create_msg).unwrap();
+        execute(deps.as_mut(), env.clone(), info.clone(), create_msg_1).unwrap();
 
-        // Respond to the task
-        let respond_msg = ExecuteMsg::RespondToTask {
+        // Respond to the first task with a positive result (score should increase)
+        let respond_msg_1 = ExecuteMsg::RespondToTask {
             task_id: 1,
-            result: 84,
+            result: 1,
         };
         let aggregator_info = mock_info("aggregator", &[]);
-        let res = execute(deps.as_mut(), env, aggregator_info, respond_msg).unwrap();
+        let res = execute(
+            deps.as_mut(),
+            env.clone(),
+            aggregator_info.clone(),
+            respond_msg_1,
+        )
+        .unwrap();
 
-        // Check if the response was saved successfully
+        // Check if the first response was saved successfully
         assert_eq!(0, res.messages.len());
         assert_eq!(1, res.events.len());
+        assert_eq!(RESPONDED_TASKS.load(deps.as_ref().storage, 1).unwrap(), 1);
 
-        // Check if the task result was saved
-        assert_eq!(RESPONDED_TASKS.load(deps.as_ref().storage, 1).unwrap(), 84);
+        // Verify that the operator's score has been incremented
+        let operator_addr = Addr::unchecked("operator");
+        assert_eq!(
+            OPERATOR_SCORE
+                .load(deps.as_ref().storage, operator_addr.clone())
+                .unwrap(),
+            1
+        );
+
+        // Create the second task
+        let create_msg_2 = ExecuteMsg::CreateNewTask {
+            input: Addr::unchecked("operator"),
+        };
+        execute(deps.as_mut(), env.clone(), info, create_msg_2).unwrap();
+
+        // Respond to the second task with a negative result (score should decrease)
+        let respond_msg_2 = ExecuteMsg::RespondToTask {
+            task_id: 2,
+            result: 0,
+        };
+        let res = execute(deps.as_mut(), env, aggregator_info, respond_msg_2).unwrap();
+
+        // Check if the second response was saved successfully
+        assert_eq!(0, res.messages.len());
+        assert_eq!(1, res.events.len());
+        assert_eq!(RESPONDED_TASKS.load(deps.as_ref().storage, 2).unwrap(), 0);
+
+        // Verify that the operator's score has been decremented
+        assert_eq!(
+            OPERATOR_SCORE
+                .load(deps.as_ref().storage, operator_addr)
+                .unwrap(),
+            0
+        );
     }
 
     #[test]

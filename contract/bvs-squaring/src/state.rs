@@ -7,3 +7,4 @@ pub const STATE_BANK: Item<Addr> = Item::new("state_bank");
 pub const BVS_DRIVER: Item<Addr> = Item::new("bvs_driver");
 pub const CREATED_TASKS: Map<u64, Addr> = Map::new("created_tasks");
 pub const RESPONDED_TASKS: Map<u64, i64> = Map::new("responded_tasks");
+pub const OPERATOR_SCORE: Map<Addr, i64> = Map::new("operator_score");
