@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 
 	"github.com/satlayer/hello-world-bvs/aggregator/core"
 	"github.com/satlayer/hello-world-bvs/aggregator/svc"
@@ -21,6 +22,7 @@ type Payload struct {
 	Timestamp int64  `json:"timestamp" binding:"required"`
 	Signature string `json:"signature" binding:"required"`
 	PubKey    string `json:"pubKey" binding:"required"`
+	Role      string `json:"role" binding:"required"`
 }
 
 // Aggregator handles the aggregator endpoint for the API.
@@ -40,6 +42,11 @@ func Aggregator(c *gin.Context) {
 	var payload Payload
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if payload.Role != core.RolePerformer && payload.Role != core.RoleAttester {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role"})
 		return
 	}
 
@@ -68,7 +75,7 @@ func Aggregator(c *gin.Context) {
 	fmt.Printf("Latest Block Hash: %s\n", latestBlockHash)
 
 	// For now let's hardocde it to 1(true)
-	var verificationResult int64 = 1
+	// var verificationResult int64 = 1
 
 	msgPayload := fmt.Sprintf("%s-%d-%d-%s", core.C.Chain.BvsHash, payload.Timestamp, payload.TaskId, payload.Result)
 	msgBytes := []byte(msgPayload)
@@ -88,21 +95,83 @@ func Aggregator(c *gin.Context) {
 		return
 	}
 
-	taskOperatorKey := fmt.Sprintf("%s%d", core.PkTaskOperator, payload.TaskId)
-	if result, err := core.S.RedisConn.Eval(c, core.LuaScript, []string{taskOperatorKey}, address).Result(); err != nil || result.(int64) == 1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "task already send"})
+	verificationKey := fmt.Sprintf("%s%d", core.PkTaskVerification, payload.TaskId)
+	var taskVerification core.TaskVerification
+
+	existingData, err := core.S.RedisConn.Get(c, verificationKey).Result()
+	if err != nil && err != redis.Nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get verification data"})
 		return
 	}
 
-	task := core.Task{TaskId: payload.TaskId, TaskResult: core.TaskResult{Operator: address, Result: verificationResult}}
-	taskStr, err := json.Marshal(task)
+	if existingData != "" {
+		if err := json.Unmarshal([]byte(existingData), &taskVerification); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse verification data"})
+			return
+		}
+	} else {
+		taskVerification = core.TaskVerification{
+			Attesters: make(map[string]*core.TaskSubmission),
+		}
+	}
+
+	submission := &core.TaskSubmission{
+		Address:   address,
+		Result:    payload.Result,
+		Timestamp: payload.Timestamp,
+		Role:      payload.Role,
+	}
+
+	if payload.Role == core.RolePerformer {
+		if taskVerification.Performer != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "performer already submitted"})
+			return
+		}
+		taskVerification.Performer = submission
+	} else {
+		if _, exists := taskVerification.Attesters[address]; exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "attester already submitted"})
+			return
+		}
+		taskVerification.Attesters[address] = submission
+	}
+
+	updatedData, err := json.Marshal(taskVerification)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to marshal verification data"})
 		return
 	}
-	if _, err := core.S.RedisConn.LPush(c, core.PkTaskQueue, taskStr).Result(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
+	if err := core.S.RedisConn.Set(c, verificationKey, updatedData, 24*time.Hour).Err(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save verification data"})
 		return
+	}
+
+	// Only process the task if we have both performer and enough attesters
+	if taskVerification.Performer != nil && len(taskVerification.Attesters) >= 1 { // @reminder Move this to constant
+		task := core.Task{
+			TaskId: payload.TaskId,
+			TaskResult: core.TaskResult{
+				Operator: taskVerification.Performer.Address,
+				Result:   1, // Hardcoded to 1 for now
+			},
+		}
+
+		taskStr, err := json.Marshal(task)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		if _, err := core.S.RedisConn.LPush(c, core.PkTaskQueue, taskStr).Result(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		if err := core.S.RedisConn.Set(c, pkTaskFinished, "1", 24*time.Hour).Err(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark task as finished"})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "success"})

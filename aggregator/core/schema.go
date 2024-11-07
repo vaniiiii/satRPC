@@ -12,6 +12,24 @@ type TaskResult struct {
 	Result   int64  `json:"result"`
 }
 
+type TaskSubmission struct {
+	Address   string `json:"address"`
+	Result    string `json:"result"`
+	Timestamp int64  `json:"timestamp"`
+	Role      string `json:"role"`
+}
+
+type TaskVerification struct {
+	Performer *TaskSubmission            `json:"performer"`
+	Attesters map[string]*TaskSubmission `json:"attesters"`
+}
+
+const (
+	PkTaskVerification = "task_verification:"
+	RolePerformer      = "performer"
+	RoleAttester       = "attester"
+)
+
 type Config struct {
 	App      App
 	Database Database
