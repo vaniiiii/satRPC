@@ -38,6 +38,7 @@ type Payload struct {
 	Timestamp int64  `json:"timestamp"`
 	Signature string `json:"signature"`
 	PubKey    string `json:"pubKey"`
+	Role      string `json:"role"`
 }
 
 // NewNode creates a new Node instance with the given configuration.
@@ -212,20 +213,25 @@ func (n *Node) calcTask(taskId string) (err error) {
 		panic(err)
 	}
 
-	// Operator should perform the task only if it's selected
+	// Get the latest block data regardless of role
+	latestBlockNumber, latestBlockHash, err := n.fetchLatestBlockData()
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Latest Block Number: ", latestBlockNumber)
+	fmt.Println("Latest Block Hash: ", latestBlockHash)
+
+	// Determine role based on selected performer
+	role := "attester"
 	if value == address {
-		latestBlockNumber, latestBlockHash, err := n.fetchLatestBlockData()
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println("Latest Block Number: ", latestBlockNumber)
-		fmt.Println("Latest Block Hash: ", latestBlockHash)
-		err = n.sendAggregator(int64(task), latestBlockNumber, latestBlockHash)
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		fmt.Println("Skipping as not selected as performer")
+		role = "performer"
+	}
+
+	// Send data to aggregator with appropriate role
+	err = n.sendAggregator(int64(task), latestBlockNumber, latestBlockHash, role)
+	if err != nil {
+		panic(err)
 	}
 	return
 }
@@ -317,7 +323,7 @@ func (n *Node) fetchLatestBlockData() (int64, string, error) {
 // latestBlockNumber is the number of the latest block in the chain.
 // latestBlockHash is the hash of the latest block in the chain.
 // Returns an error if there is an issue with the sending process.
-func (n *Node) sendAggregator(taskId int64, latestBlockNumber int64, latestBlockHash string) (err error) {
+func (n *Node) sendAggregator(taskId int64, latestBlockNumber int64, latestBlockHash string, role string) (err error) {
 	nowTs := time.Now().Unix()
 	result := fmt.Sprintf("%d-%s", latestBlockNumber, latestBlockHash)
 	msgPayload := fmt.Sprintf("%s-%d-%d-%s", core.C.Chain.BvsHash, nowTs, taskId, result)
@@ -330,6 +336,7 @@ func (n *Node) sendAggregator(taskId int64, latestBlockNumber int64, latestBlock
 		Timestamp: nowTs,
 		Signature: signature,
 		PubKey:    n.pubKeyStr,
+		Role:      role,
 	}
 	fmt.Printf("task result send aggregator payload: %+v\n", payload)
 	if err != nil {
