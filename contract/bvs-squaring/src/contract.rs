@@ -2,7 +2,8 @@ use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     state::{
-        AGGREGATOR, BVS_DRIVER, CREATED_TASKS, MAX_ID, OPERATOR_SCORE, RESPONDED_TASKS, STATE_BANK,
+        AGGREGATOR, BVS_DRIVER, CREATED_TASKS, MAX_ID, OPERATOR_MAX_SCORE, OPERATOR_SCORE,
+        RESPONDED_TASKS, STATE_BANK,
     },
 };
 
@@ -142,6 +143,13 @@ fn respond_to_task(
             };
             Ok(updated_score)
         },
+    )?;
+
+    // increment operator's max score
+    OPERATOR_MAX_SCORE.update(
+        deps.storage,
+        operator.clone(),
+        |max_score| -> Result<_, ContractError> { Ok(max_score.unwrap_or(0) + 1) },
     )?;
 
     // emit event
@@ -358,6 +366,14 @@ mod tests {
             1
         );
 
+        // Verify that OPERATOR_MAX_SCORE was incremented
+        assert_eq!(
+            OPERATOR_MAX_SCORE
+                .load(deps.as_ref().storage, operator_addr.clone())
+                .unwrap(),
+            1
+        );
+
         // Create the second task
         let create_msg_2 = ExecuteMsg::CreateNewTask {
             input: Addr::unchecked("operator"),
@@ -379,9 +395,17 @@ mod tests {
         // Verify that the operator's score has been decremented
         assert_eq!(
             OPERATOR_SCORE
-                .load(deps.as_ref().storage, operator_addr)
+                .load(deps.as_ref().storage, operator_addr.clone())
                 .unwrap(),
             0
+        );
+
+        // Verify that OPERATOR_MAX_SCORE was incremented again
+        assert_eq!(
+            OPERATOR_MAX_SCORE
+                .load(deps.as_ref().storage, operator_addr.clone())
+                .unwrap(),
+            2
         );
     }
 
