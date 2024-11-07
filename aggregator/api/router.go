@@ -8,4 +8,6 @@ import "github.com/gin-gonic/gin"
 // No return values.
 func SetupRoutes(router *gin.Engine) {
 	router.POST("api/aggregator", Aggregator)
+	router.GET("api/aggregator/task/:taskId", GetTaskData)
+
 }
