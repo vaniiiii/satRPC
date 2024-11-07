@@ -375,7 +375,7 @@ func (n *Node) validatePerformerData(performerData PerformerData, expectedAddres
 	actualBlockHash := blockResponse.Result.BlockID.Hash
 
 	isBlockValid := actualBlockHash == performerBlockHash
-	isBlockRecent := currentBlockNumber-performerBlockNumber <= 10 // You might want to adjust this threshold
+	isBlockRecent := currentBlockNumber-performerBlockNumber <= 10 // @reminder You might want to adjust this threshold
 	isCorrectPerformer := performerData.Address == expectedAddress
 
 	return isBlockValid && isBlockRecent && isCorrectPerformer, nil
