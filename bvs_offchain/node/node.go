@@ -18,6 +18,7 @@ import (
 
 	"github.com/satlayer/satlayer-api/chainio/io"
 
+	"github.com/satlayer/hello-world-bvs/aggregator/util"
 	"github.com/satlayer/hello-world-bvs/bvs_offchain/core"
 	"github.com/satlayer/satlayer-api/chainio/api"
 	"github.com/satlayer/satlayer-api/chainio/indexer"
@@ -205,10 +206,16 @@ func (n *Node) calcTask(taskId string) (err error) {
 		fmt.Println("format err:", err)
 		return
 	}
-	if value != "" { // change to if value == n.pubKeyStr
+	_, address, err := util.PubKeyToAddress(n.pubKeyStr)
+	if err != nil {
+		panic(err)
+	}
+
+	// Operator should perform the task only if it's selected
+	if value == address {
 		latestBlockNumber, latestBlockHash, err := n.fetchLatestBlockData()
 		if err != nil {
-			return err
+			panic(err)
 		}
 		err = n.sendAggregator(int64(task), latestBlockNumber, latestBlockHash)
 		if err != nil {
