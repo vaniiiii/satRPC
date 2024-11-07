@@ -41,6 +41,10 @@ type Payload struct {
 	Role      string `json:"role"`
 }
 
+type PerformerData struct {
+	Result string `json:"result"`
+}
+
 // NewNode creates a new Node instance with the given configuration.
 //
 // It initializes a new Cosmos client, retrieves the account, and sets up the BVS contracts and state bank.
@@ -201,39 +205,94 @@ func (n *Node) calcTask(taskId string) (err error) {
 	stateKey := fmt.Sprintf("taskId.%s", taskId)
 	value, err := n.stateBank.GetWasmUpdateState(stateKey)
 	if err != nil {
-		return
+		return err
 	}
+
 	task, err := strconv.Atoi(taskId)
 	if err != nil {
 		fmt.Println("format err:", err)
-		return
+		return err
 	}
 	_, address, err := util.PubKeyToAddress(n.pubKeyStr)
 	if err != nil {
 		panic(err)
 	}
 
-	// Get the latest block data regardless of role
-	latestBlockNumber, latestBlockHash, err := n.fetchLatestBlockData()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Latest Block Number: ", latestBlockNumber)
-	fmt.Println("Latest Block Hash: ", latestBlockHash)
-
-	// Determine role based on selected performer
-	role := "attester"
+	// Check if we're the performer
 	if value == address {
-		role = "performer"
+		fmt.Printf("Selected as performer for task %s\n", taskId)
+		latestBlockNumber, latestBlockHash, err := n.fetchLatestBlockData()
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Printf("Performer data - Block Number: %d, Hash: %s\n", latestBlockNumber, latestBlockHash)
+
+		result := fmt.Sprintf("%d-%s", latestBlockNumber, latestBlockHash)
+		if err = n.sendAggregator(int64(task), result, "performer"); err != nil {
+			panic(err)
+		}
+		return nil
 	}
 
-	// Send data to aggregator with appropriate role
-	err = n.sendAggregator(int64(task), latestBlockNumber, latestBlockHash, role)
-	if err != nil {
+	// We're an attester, try multiple times to get performer's data
+	fmt.Printf("Acting as attester for task %s, waiting for performer data...\n", taskId)
+
+	// Retry configuration
+	maxRetries := 5               // Try 5 times
+	retryDelay := 3 * time.Second // Wait 3 seconds between tries
+
+	var performerData PerformerData
+	var gotData bool
+
+	for i := 0; i < maxRetries; i++ {
+		if i > 0 {
+			fmt.Printf("Retry %d/%d for task %s\n", i+1, maxRetries, taskId)
+		}
+
+		// Try to get performer's data
+		url := fmt.Sprintf("%s/task/%s", core.C.Aggregator.Url, taskId)
+		resp, err := http.Get(url)
+		if err != nil {
+			fmt.Printf("Failed to get performer data: %v, retrying...\n", err)
+			time.Sleep(retryDelay)
+			continue
+		}
+
+		if resp.StatusCode == http.StatusNotFound {
+			resp.Body.Close()
+			fmt.Printf("No performer data yet for task %s, retrying...\n", taskId)
+			time.Sleep(retryDelay)
+			continue
+		}
+
+		if err := json.NewDecoder(resp.Body).Decode(&performerData); err != nil {
+			resp.Body.Close()
+			fmt.Printf("Failed to decode performer data: %v, retrying...\n", err)
+			time.Sleep(retryDelay)
+			continue
+		}
+		resp.Body.Close()
+
+		gotData = true
+		fmt.Printf("Got performer data for task %s: %s\n", taskId, performerData.Result)
+		break
+	}
+
+	if !gotData {
+		return fmt.Errorf("failed to get performer data after %d retries", maxRetries)
+	}
+
+	// For now, always validate as true
+	result := "true"
+
+	// Send attestation
+	if err = n.sendAggregator(int64(task), result, "attester"); err != nil {
 		panic(err)
 	}
-	return
+
+	fmt.Printf("Successfully sent attestation for task %s\n", taskId)
+	return nil
 }
 
 // fetchLatestBlockData retrieves the latest block number and its hash from the configured RPC endpoint.
@@ -320,43 +379,51 @@ func (n *Node) fetchLatestBlockData() (int64, string, error) {
 // sendAggregator sends the task result to the aggregator.
 //
 // taskId is the unique identifier of the task.
-// latestBlockNumber is the number of the latest block in the chain.
-// latestBlockHash is the hash of the latest block in the chain.
+// result is either block data (for performer) or validation result (for attester)
+// role is either "performer" or "attester"
 // Returns an error if there is an issue with the sending process.
-func (n *Node) sendAggregator(taskId int64, latestBlockNumber int64, latestBlockHash string, role string) (err error) {
+func (n *Node) sendAggregator(taskId int64, result string, role string) (err error) {
 	nowTs := time.Now().Unix()
-	result := fmt.Sprintf("%d-%s", latestBlockNumber, latestBlockHash)
+
+	// Create message payload based on role
 	msgPayload := fmt.Sprintf("%s-%d-%d-%s", core.C.Chain.BvsHash, nowTs, taskId, result)
 	core.L.Info(fmt.Sprintf("msgPayload: %s\n", msgPayload))
+
 	signature, err := n.chainIO.GetSigner().Sign([]byte(msgPayload))
+	if err != nil {
+		return fmt.Errorf("failed to sign payload: %v", err)
+	}
 
 	payload := Payload{
 		TaskId:    taskId,
-		Result:    result,
+		Result:    result, // For performer: "blockNum-hash", for attester: "true"/"false"
 		Timestamp: nowTs,
 		Signature: signature,
 		PubKey:    n.pubKeyStr,
 		Role:      role,
 	}
-	fmt.Printf("task result send aggregator payload: %+v\n", payload)
-	if err != nil {
-		return
-	}
+
+	fmt.Printf("Sending to aggregator - Role: %s, TaskId: %d, Result: %s\n", role, taskId, result)
+
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		fmt.Printf("Error marshaling JSON: %s", err)
-		return
+		fmt.Printf("Error marshaling JSON: %s\n", err)
+		return fmt.Errorf("failed to marshal payload: %v", err)
 	}
 
 	resp, err := http.Post(core.C.Aggregator.Url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		fmt.Printf("Error sending aggregator : %s\n", err)
-		return
+		fmt.Printf("Error sending to aggregator: %s\n", err)
+		return fmt.Errorf("failed to send to aggregator: %v", err)
 	}
+	defer resp.Body.Close()
+
 	if resp.StatusCode != 200 {
 		body, _ := rio.ReadAll(resp.Body)
-		fmt.Printf("Error sending aggregator : %s\n", string(body))
-		return
+		fmt.Printf("Error from aggregator: %s\n", string(body))
+		return fmt.Errorf("aggregator returned non-200 status: %d, body: %s", resp.StatusCode, body)
 	}
-	return
+
+	fmt.Printf("Successfully sent %s data to aggregator for task %d\n", role, taskId)
+	return nil
 }
