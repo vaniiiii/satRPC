@@ -69,10 +69,6 @@ func Aggregator(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid result format for performer"})
 			return
 		}
-		latestBlockNumber := resultParts[0]
-		latestBlockHash := resultParts[1]
-		fmt.Printf("Latest Block Number: %s\n", latestBlockNumber)
-		fmt.Printf("Latest Block Hash: %s\n", latestBlockHash)
 	} else {
 		if payload.Result != "true" && payload.Result != "false" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid result format for attester"})
@@ -151,43 +147,85 @@ func Aggregator(c *gin.Context) {
 		return
 	}
 
-	// Only process the task if we have both performer and enough attesters
-	if taskVerification.Performer != nil && len(taskVerification.Attesters) >= 1 {
-		// Count positive validations
+	// Only process the task if we have both performer and minimum number of attesters
+	if taskVerification.Performer != nil && len(taskVerification.Attesters) >= core.MinimumAttesters {
+		totalVotes := len(taskVerification.Attesters)
 		positiveVotes := 0
-		// _totalVotes := len(taskVerification.Attesters)
+		negativeVotes := 0
 
-		for _, attester := range taskVerification.Attesters {
+		fmt.Println("\n////////////////////////////////////////////////////////////////")
+		fmt.Println("                         VOTE COLLECTION")
+		fmt.Println("////////////////////////////////////////////////////////////////")
+		fmt.Printf("Processing task %d with %d attesters\n", payload.TaskId, totalVotes)
+		fmt.Printf("Performer address: %s\n", taskVerification.Performer.Address)
+
+		// Count votes
+		for address, attester := range taskVerification.Attesters {
 			if attester.Result == "true" {
 				positiveVotes++
+				fmt.Printf("Attester %s voted: true\n", address)
+			} else {
+				negativeVotes++
+				fmt.Printf("Attester %s voted: false\n", address)
 			}
 		}
 
-		// For now, always set result to 1 (mocked verification)
+		fmt.Println("\n////////////////////////////////////////////////////////////////")
+		fmt.Println("                       CONSENSUS CALCULATION")
+		fmt.Println("////////////////////////////////////////////////////////////////")
+		// Calculate percentage of positive and negative votes
+		positivePercentage := (float64(positiveVotes) / float64(totalVotes)) * 100
+		negativePercentage := (float64(negativeVotes) / float64(totalVotes)) * 100
+
+		fmt.Printf("Vote Summary - Total: %d, Positive: %d (%.2f%%), Negative: %d (%.2f%%)\n",
+			totalVotes, positiveVotes, positivePercentage, negativeVotes, negativePercentage)
+
+		// Determine final result based on consensus
+		var finalResult int64
+		if positivePercentage >= core.ConsensusThreshold {
+			finalResult = 1 // Attesters confirm performer's result is correct
+			fmt.Printf("Consensus reached: APPROVED (%.2f%% >= %d%%)\n", positivePercentage, core.ConsensusThreshold)
+		} else if negativePercentage >= core.ConsensusThreshold {
+			finalResult = 0 // Attesters reject performer's result
+			fmt.Printf("Consensus reached: REJECTED (%.2f%% >= %d%%)\n", negativePercentage, core.ConsensusThreshold)
+		} else {
+			fmt.Printf("No consensus reached yet - Positive: %.2f%%, Negative: %.2f%%, Required: %d%%\n",
+				positivePercentage, negativePercentage, core.ConsensusThreshold)
+			c.JSON(http.StatusOK, gin.H{"status": "success", "message": "waiting for more attestations"})
+			return
+		}
+
+		fmt.Println("\n////////////////////////////////////////////////////////////////")
+		fmt.Println("                         TASK PROCESSING")
+		fmt.Println("////////////////////////////////////////////////////////////////")
 		task := core.Task{
 			TaskId: payload.TaskId,
 			TaskResult: core.TaskResult{
 				Operator: taskVerification.Performer.Address,
-				Result:   1, // Hardcoded to 1 for now
+				Result:   finalResult,
 			},
 		}
 
 		taskStr, err := json.Marshal(task)
 		if err != nil {
+			fmt.Printf("Error marshaling task: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
 		if _, err := core.S.RedisConn.LPush(c, core.PkTaskQueue, taskStr).Result(); err != nil {
+			fmt.Printf("Error pushing task to queue: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
 		if err := core.S.RedisConn.Set(c, pkTaskFinished, "1", 24*time.Hour).Err(); err != nil {
+			fmt.Printf("Error marking task as finished: %v\n", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to mark task as finished"})
 			return
 		}
-	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "success"})
+		fmt.Printf("Task %d successfully processed and queued\n", payload.TaskId)
+		c.JSON(http.StatusOK, gin.H{"status": "success", "message": "task processed"})
+	}
 }
