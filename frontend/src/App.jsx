@@ -15,7 +15,7 @@ const CHAINS = [
   {
     title: "Babylon Mainnet",
     chainId: 100,
-    currency: "BBY",
+    currency: "BBN",
     iconPath: "/babylon.webp",
   },
   {
