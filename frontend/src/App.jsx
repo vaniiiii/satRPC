@@ -174,34 +174,13 @@ function App() {
         />
         <Route path="/leaderboard">
           <div className="flex items-center justify-center h-screen flex-col mt-[-100px]">
-            <div className="w-[1024px] mb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="font-bold text-2xl flex items-center gap-2">
-                    <span>
-                      <img className="h-10" src="satlayer.svg" alt="" />
-                    </span>
-                    <span>satRPC</span>
-                  </h2>
-                  <p className="opacity-80 opacity-40">
-                    Powered by Babylon and SatLayer Stack
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <img
-                    className="h-6 rounded-full"
-                    src={selectedChain.iconPath}
-                    alt={selectedChain.title}
-                  />
-                  <span className="font-bold">{selectedChain.title}</span>
-                </div>
-              </div>
-              {error && (
+            {error && (
+              <div className="w-full max-w-[1024px] px-4 lg:px-0">
                 <div className="mt-4 p-4 bg-red-100 text-red-700 rounded-md">
                   {error}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
             <Leaderboard
               leaderboard={leaderboard}
               isLoading={isInitializing || leaderboard.length === 0}
@@ -358,150 +337,190 @@ function Leaderboard({ leaderboard, isLoading, selectedChain }) {
   };
 
   return (
-    <div className="w-[1024px] border">
+    <div className="w-full max-w-[1024px] px-4 lg:px-0">
+      <div className="mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="font-bold text-xl sm:text-2xl flex items-center gap-2">
+              <span>
+                <img className="h-8 sm:h-10" src="satlayer.svg" alt="" />
+              </span>
+              <span>satRPC</span>
+            </h2>
+            <p className="text-sm sm:text-base opacity-80 opacity-40">
+              Powered by Babylon and SatLayer Stack
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <img
+              className="h-5 sm:h-6 rounded-full"
+              src={selectedChain.iconPath}
+              alt={selectedChain.title}
+            />
+            <span className="font-bold text-sm sm:text-base">
+              {selectedChain.title}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {walletError && (
-        <div className="bg-red-100 text-red-700 p-4 mb-4 rounded-md">
+        <div className="bg-red-100 text-red-700 p-3 sm:p-4 mb-4 rounded-md text-sm sm:text-base">
           {walletError}
         </div>
       )}
       {walletStatus && !walletError && (
-        <div className="bg-blue-100 text-blue-700 p-4 mb-4 rounded-md">
+        <div className="bg-blue-100 text-blue-700 p-3 sm:p-4 mb-4 rounded-md text-sm sm:text-base">
           {walletStatus}
         </div>
       )}
-      <table className="w-full bg-white">
-        <thead>
-          <tr>
-            <th className="text-left pl-2 bg-gray-100/50 py-2">RPC</th>
-            <th className="text-left bg-gray-100/50 py-2">Address</th>
-            <th className="text-left bg-gray-100/50 py-2 text-left">Latency</th>
-            <th className="text-left bg-gray-100/50 py-2 text-left">Height</th>
-            <th className="text-left bg-gray-100/50 py-2 text-left">Score</th>
-            <th className="text-left bg-gray-100/50"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {!isLoading &&
-            leaderboard.map((l, i) => (
-              <tr key={l[0]}>
-                <td className="py-2 border-b border-black/10 pl-2">
-                  {l[0].slice(0, 6)}.rpc.node
-                </td>
-                <td className="py-2 border-b border-black/10 font-mono text-sm">
-                  {shortenAddress(l[0])}
-                </td>
-                <td className="py-2 border-b border-black/10 font-mono text-sm">
-                  {l[4]?.toFixed(2)} ms
-                </td>
-                <td className="py-2 border-b border-black/10 font-mono text-sm">
-                  {l[5]?.toLocaleString()}
-                </td>
-                <td className="py-2 border-b border-black/10 text-left">
-                  <span className="block flex gap-1 items-center">
-                    {l[3] > 90 ? (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="green"
-                        className="w-5 h-5"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    ) : (
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="red"
-                        className="w-5 h-5"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    )}
-                    <span
-                      className={l[3] > 90 ? "text-green-500" : "text-red-500"}
-                    >
-                      {l[3].toFixed(2)}%
-                    </span>
-                  </span>
-                </td>
-                <td className="border-b border-black/10 text-right pr-2">
-                  <button
-                    onClick={() =>
-                      handleAddToWallet(
-                        l[0],
-                        "https://rpc.sat-bbn-testnet1.satlayer.net"
-                      )
-                    }
-                    disabled={addingWallets[l[0]]}
-                    className={`border-black border text-black text-center rounded-full px-2 py-1 
-						${addingWallets[l[0]] ? "opacity-50 cursor-not-allowed" : "hover:text-white hover:bg-black"}`}
-                  >
-                    {addingWallets[l[0]] ? (
-                      <span className="flex items-center gap-2">
+      <div className="w-full bg-white border rounded-lg overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr>
+              <th className="text-left pl-2 bg-gray-100/50 py-2 text-sm sm:text-base">
+                RPC
+              </th>
+              <th className="hidden sm:table-cell text-left bg-gray-100/50 py-2">
+                Address
+              </th>
+              <th className="hidden sm:table-cell text-left bg-gray-100/50 py-2">
+                Latency
+              </th>
+              <th className="hidden sm:table-cell text-left bg-gray-100/50 py-2">
+                Height
+              </th>
+              <th className="text-left bg-gray-100/50 py-2 text-sm sm:text-base">
+                Score
+              </th>
+              <th className="text-left bg-gray-100/50"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {!isLoading &&
+              leaderboard.map((l, i) => (
+                <tr key={l[0]}>
+                  <td className="py-2 border-b border-black/10 pl-2 text-sm sm:text-base">
+                    {l[0].slice(0, 6)}.rpc.node
+                  </td>
+                  <td className="hidden sm:table-cell py-2 border-b border-black/10 font-mono text-sm">
+                    {shortenAddress(l[0])}
+                  </td>
+                  <td className="hidden sm:table-cell py-2 border-b border-black/10 font-mono text-sm">
+                    {l[4]?.toFixed(2)} ms
+                  </td>
+                  <td className="hidden sm:table-cell py-2 border-b border-black/10 font-mono text-sm">
+                    {l[5]?.toLocaleString()}
+                  </td>
+                  <td className="py-2 border-b border-black/10 text-left">
+                    <span className="block flex gap-1 items-center">
+                      {l[3] > 90 ? (
                         <svg
-                          className="animate-spin h-4 w-4 text-blue-500"
                           xmlns="http://www.w3.org/2000/svg"
-                          fill="none"
-                          viewBox="0 0 24 24"
+                          viewBox="0 0 20 20"
+                          fill="green"
+                          className="w-4 h-4 sm:w-5 sm:h-5"
                         >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
-                            stroke="currentColor"
-                            strokeWidth="4"
-                          />
                           <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
+                            clipRule="evenodd"
                           />
                         </svg>
-                        {walletStatus || "Adding..."}
+                      ) : (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="red"
+                          className="w-4 h-4 sm:w-5 sm:h-5"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                      <span
+                        className={`text-sm sm:text-base ${
+                          l[3] > 90 ? "text-green-500" : "text-red-500"
+                        }`}
+                      >
+                        {l[3].toFixed(2)}%
                       </span>
-                    ) : (
-                      "Add to Wallet"
-                    )}
-                  </button>
-                </td>
-              </tr>
-            ))}
-        </tbody>
-      </table>
-      {isLoading && (
-        <div className="bg-gray-100/20 p-4 flex items-center justify-center">
-          <svg
-            className="animate-spin -ml-1 mr-3 h-5 w-5"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-          <span>Loading...</span>
-        </div>
-      )}
+                    </span>
+                  </td>
+                  <td className="border-b border-black/10 text-right pr-2">
+                    <button
+                      onClick={() =>
+                        handleAddToWallet(
+                          l[0],
+                          "https://rpc.sat-bbn-testnet1.satlayer.net"
+                        )
+                      }
+                      disabled={addingWallets[l[0]]}
+                      className={`border-black border text-black text-center rounded-full px-2 py-1 text-sm sm:text-base
+                        ${addingWallets[l[0]] ? "opacity-50 cursor-not-allowed" : "hover:text-white hover:bg-black"}`}
+                    >
+                      {addingWallets[l[0]] ? (
+                        <span className="flex items-center gap-2">
+                          <svg
+                            className="animate-spin h-3 w-3 sm:h-4 sm:w-4 text-blue-500"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            />
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            />
+                          </svg>
+                          {walletStatus || "Adding..."}
+                        </span>
+                      ) : (
+                        "Add to Wallet"
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+        {isLoading && (
+          <div className="bg-gray-100/20 p-4 flex items-center justify-center">
+            <svg
+              className="animate-spin -ml-1 mr-3 h-4 w-4 sm:h-5 sm:w-5"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+            <span className="text-sm sm:text-base">Loading...</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
