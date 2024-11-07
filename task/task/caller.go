@@ -3,7 +3,6 @@ package task
 import (
 	"context"
 	"fmt"
-	"math/rand"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -64,19 +63,23 @@ func NewCaller() *Caller {
 	}
 }
 
-// Run runs the caller in an infinite loop, creating a new task with a random number every second.
+// Run runs the caller in an infinite loop, creating a new task for a specified operator address every 30 seconds.
 //
 // No parameters.
 // No return.
 func (c *Caller) Run() {
 	bvsSquaring := BvsSquaringApi.NewBVSSquaring(c.chainIO)
+	operator := "bbn1d9878dze7npzf7t3vxh8f5y2munj7a8xuy50m8"
+
 	for {
 		bvsSquaring.BindClient(c.bvsContract)
-		randomNumber := rand.Int63n(100)
-		resp, err := bvsSquaring.CreateNewTask(context.Background(), randomNumber)
+		resp, err := bvsSquaring.CreateNewTask(context.Background(), operator)
 		if err != nil {
-			panic(err)
+			fmt.Printf("Error creating task for operator %s: %v\n", operator, err)
+			continue
 		}
-		fmt.Printf("resp: %s\n", resp.Hash.String())
+		fmt.Printf("Created task for operator %s with tx hash: %s\n", operator, resp.Hash.String())
+
+		time.Sleep(30 * time.Second)
 	}
 }
