@@ -13,7 +13,7 @@ import (
 
 type BVSSquaring interface {
 	BindClient(string)
-	CreateNewTask(context.Context, int64) (*coretypes.ResultTx, error)
+	CreateNewTask(context.Context, string) (*coretypes.ResultTx, error)
 	RespondToTask(ctx context.Context, taskId int64, result int64, operators string) (*coretypes.ResultTx, error)
 	GetTaskInput(int64) (*wasmtypes.QuerySmartContractStateResponse, error)
 	GetTaskResult(int64) (*wasmtypes.QuerySmartContractStateResponse, error)
@@ -43,7 +43,7 @@ func (a *bvsSquaringImpl) BindClient(contractAddress string) {
 	}
 }
 
-func (a *bvsSquaringImpl) CreateNewTask(ctx context.Context, input int64) (*coretypes.ResultTx, error) {
+func (a *bvsSquaringImpl) CreateNewTask(ctx context.Context, input string) (*coretypes.ResultTx, error) {
 	msg := types.CreateNewTaskReq{
 		CreateNewTask: types.CreateNewTask{
 			Input: input,
