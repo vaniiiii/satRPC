@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -42,7 +43,8 @@ type Payload struct {
 }
 
 type PerformerData struct {
-	Result string `json:"result"`
+	Result  string `json:"result"`
+	Address string `json:"address"`
 }
 
 // NewNode creates a new Node instance with the given configuration.
@@ -283,10 +285,16 @@ func (n *Node) calcTask(taskId string) (err error) {
 		return fmt.Errorf("failed to get performer data after %d retries", maxRetries)
 	}
 
-	// For now, always validate as true
-	result := "true"
+	isValid, err := n.validatePerformerData(performerData, value)
+	if err != nil {
+		return fmt.Errorf("validation failed: %v", err)
+	}
 
-	// Send attestation
+	result := "true"
+	if !isValid {
+		result = "false"
+	}
+
 	if err = n.sendAggregator(int64(task), result, "attester"); err != nil {
 		panic(err)
 	}
@@ -374,6 +382,59 @@ func (n *Node) fetchLatestBlockData() (int64, string, error) {
 	}
 
 	return latestBlockNumber, blockResult.Result.Hash, nil
+}
+
+func (n *Node) validatePerformerData(performerData PerformerData, expectedAddress string) (bool, error) {
+	// Parse performer's data
+	parts := strings.Split(performerData.Result, "-")
+	if len(parts) != 2 {
+		return false, fmt.Errorf("invalid performer data format")
+	}
+
+	performerBlockNumber, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse block number: %v", err)
+	}
+	performerBlockHash := parts[1]
+
+	// Get current block data for verification
+	currentBlockNumber, _, err := n.fetchLatestBlockData()
+	if err != nil {
+		return false, fmt.Errorf("failed to fetch current block data: %v", err)
+	}
+
+	// Verify block exists and hash matches
+	payload := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "eth_getBlockByNumber",
+		"params":  []interface{}{fmt.Sprintf("0x%x", performerBlockNumber), false},
+		"id":      1,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return false, fmt.Errorf("failed to marshal JSON payload: %v", err)
+	}
+
+	resp, err := http.Post(core.C.Rpc.Endpoint, "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		return false, fmt.Errorf("failed to fetch block data: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var blockResult struct {
+		Result struct {
+			Hash string `json:"hash"`
+		} `json:"result"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&blockResult); err != nil {
+		return false, fmt.Errorf("failed to decode block data: %v", err)
+	}
+
+	isBlockValid := blockResult.Result.Hash == performerBlockHash
+	isBlockRecent := currentBlockNumber-performerBlockNumber <= 10
+	isCorrectPerformer := performerData.Address == expectedAddress
+
+	return isBlockValid && isBlockRecent && isCorrectPerformer, nil
 }
 
 // sendAggregator sends the task result to the aggregator.
