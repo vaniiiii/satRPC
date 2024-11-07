@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +17,7 @@ import (
 
 type Payload struct {
 	TaskId    uint64 `json:"taskID" binding:"required"`
-	Result    int64  `json:"result" binding:"required"`
+	Result    string `json:"result" binding:"required"`
 	Timestamp int64  `json:"timestamp" binding:"required"`
 	Signature string `json:"signature" binding:"required"`
 	PubKey    string `json:"pubKey" binding:"required"`
@@ -36,39 +37,46 @@ type Payload struct {
 // Returns:
 // - None.
 func Aggregator(c *gin.Context) {
-	// parse payload
 	var payload Payload
 	if err := c.ShouldBindJSON(&payload); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	fmt.Printf("payload: %+v\n", payload)
 
-	// get current timestamp
 	nowTs := time.Now().Unix()
 	if payload.Timestamp > nowTs || payload.Timestamp < nowTs-60*2 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "timestamp out of range"})
 		return
 	}
 
-	// verify signature
 	pubKey, address, err := util.PubKeyToAddress(payload.PubKey)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	fmt.Printf("pubKey: %s\n", pubKey)
-	fmt.Printf("address: %s\n", address)
-	fmt.Printf("payload.PubKey: %s\n", payload.PubKey)
 
-	msgPayload := fmt.Sprintf("%s-%d-%d-%d", core.C.Chain.BvsHash, payload.Timestamp, payload.TaskId, payload.Result)
+	resultParts := strings.Split(payload.Result, "-")
+	if len(resultParts) != 2 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid result format"})
+		return
+	}
+
+	// @reminder Add verification here
+	latestBlockNumber := resultParts[0]
+	latestBlockHash := resultParts[1]
+	fmt.Printf("Latest Block Number: %s\n", latestBlockNumber)
+	fmt.Printf("Latest Block Hash: %s\n", latestBlockHash)
+
+	// For now let's hardocde it to 1(true)
+	var verificationResult int64 = 1
+
+	msgPayload := fmt.Sprintf("%s-%d-%d-%s", core.C.Chain.BvsHash, payload.Timestamp, payload.TaskId, payload.Result)
 	msgBytes := []byte(msgPayload)
 	if isValid, err := signer.VerifySignature(pubKey, msgBytes, payload.Signature); err != nil || !isValid {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid signature"})
 		return
 	}
 
-	// verify task is finished
 	pkTaskFinished := fmt.Sprintf("%s%d", core.PkTaskFinished, payload.TaskId)
 	if isExist, err := core.S.RedisConn.Exists(c, pkTaskFinished).Result(); err != nil || isExist == 1 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "task already finished"})
@@ -80,15 +88,13 @@ func Aggregator(c *gin.Context) {
 		return
 	}
 
-	// verify operator is already send
 	taskOperatorKey := fmt.Sprintf("%s%d", core.PkTaskOperator, payload.TaskId)
 	if result, err := core.S.RedisConn.Eval(c, core.LuaScript, []string{taskOperatorKey}, address).Result(); err != nil || result.(int64) == 1 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "task already send"})
 		return
 	}
 
-	// save task to queue
-	task := core.Task{TaskId: payload.TaskId, TaskResult: core.TaskResult{Operator: address, Result: payload.Result}}
+	task := core.Task{TaskId: payload.TaskId, TaskResult: core.TaskResult{Operator: address, Result: verificationResult}}
 	taskStr, err := json.Marshal(task)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
