@@ -469,7 +469,7 @@ function Leaderboard({ leaderboard, isLoading, selectedChain }) {
                         {walletStatus || "Adding..."}
                       </span>
                     ) : (
-                      "Add to Keplr"
+                      "Add to Wallet"
                     )}
                   </button>
                 </td>
