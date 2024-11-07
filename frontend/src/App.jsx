@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
 import { CosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 
 // Constants for configuration
@@ -14,27 +14,44 @@ const OPERATORS = [
 const CHAINS = [
   {
     title: "Babylon",
-    chainId: 100,
+    chainId: "sat-bbn-testnet1",
+    evmChainId: 100,
     currency: "BBN",
     iconPath: "/babylon.webp",
+    rpc: "https://rpc.sat-bbn-testnet1.satlayer.net",
+    rest: "https://lcd1.sat-bbn-testnet1.satlayer.net",
+    bech32Config: {
+      bech32PrefixAccAddr: "bbn",
+      bech32PrefixAccPub: "bbnpub",
+      bech32PrefixValAddr: "bbnvaloper",
+      bech32PrefixValPub: "bbnvaloperpub",
+      bech32PrefixConsAddr: "bbnvalcons",
+      bech32PrefixConsPub: "bbnvalconspub",
+    },
   },
   {
     title: "Ethereum Mainnet",
-    chainId: 1,
+    chainId: "ethereum-1",
+    evmChainId: 1,
     currency: "ETH",
     iconPath: "/ethereum.webp",
+    rpc: "https://eth.llamarpc.com",
   },
   {
     title: "Base",
-    chainId: 8453,
+    chainId: "base-1",
+    evmChainId: 8453,
     currency: "ETH",
     iconPath: "/base.webp",
+    rpc: "https://base.llamarpc.com",
   },
   {
     title: "Polygon",
-    chainId: 137,
+    chainId: "polygon-1",
+    evmChainId: 137,
     currency: "MATIC",
     iconPath: "/polygon.webp",
+    rpc: "https://polygon.llamarpc.com",
   },
 ];
 
@@ -43,6 +60,7 @@ function App() {
   const [client, setClient] = React.useState(null);
   const [error, setError] = React.useState(null);
   const [isInitializing, setIsInitializing] = React.useState(true);
+  const [selectedChain, setSelectedChain] = React.useState(CHAINS[0]);
 
   React.useEffect(() => {
     async function initClient() {
@@ -150,19 +168,34 @@ function App() {
   return (
     <>
       <Switch>
-        <Route path="/" component={Homepage} />
+        <Route
+          path="/"
+          component={() => <Homepage onChainSelect={setSelectedChain} />}
+        />
         <Route path="/leaderboard">
           <div className="flex items-center justify-center h-screen flex-col mt-[-100px]">
             <div className="w-[1024px] mb-4">
-              <h2 className="font-bold text-2xl flex items-center gap-2">
-                <span>
-                  <img className="h-10" src="satlayer.svg" alt="" />
-                </span>
-                <span>satRPC</span>
-              </h2>
-              <p className="opacity-80 opacity-40">
-                Powered by Babylon and SatLayer Stack
-              </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-bold text-2xl flex items-center gap-2">
+                    <span>
+                      <img className="h-10" src="satlayer.svg" alt="" />
+                    </span>
+                    <span>satRPC</span>
+                  </h2>
+                  <p className="opacity-80 opacity-40">
+                    Powered by Babylon and SatLayer Stack
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <img
+                    className="h-6 rounded-full"
+                    src={selectedChain.iconPath}
+                    alt={selectedChain.title}
+                  />
+                  <span className="font-bold">{selectedChain.title}</span>
+                </div>
+              </div>
               {error && (
                 <div className="mt-4 p-4 bg-red-100 text-red-700 rounded-md">
                   {error}
@@ -172,6 +205,7 @@ function App() {
             <Leaderboard
               leaderboard={leaderboard}
               isLoading={isInitializing || leaderboard.length === 0}
+              selectedChain={selectedChain}
             />
           </div>
         </Route>
@@ -180,7 +214,14 @@ function App() {
   );
 }
 
-function Homepage() {
+function Homepage({ onChainSelect }) {
+  const [, setLocation] = useLocation();
+
+  const handleChainSelect = (chain) => {
+    onChainSelect(chain);
+    setLocation("/leaderboard");
+  };
+
   return (
     <div className="grid grid-cols-2 h-screen">
       <div className="bg-[#FFB800] flex flex-col items-center justify-center">
@@ -208,27 +249,27 @@ function Homepage() {
           <span className="opacity-40">Select a network</span>
         </div>
         <div className="grid grid-cols-1 gap-4">
-          {CHAINS.map((d) => (
+          {CHAINS.map((chain) => (
             <div
-              key={d.chainId}
+              key={chain.chainId}
               className="p-4 flex flex-col border border-gray-100 bg-white items-center gap-2 rounded-lg"
             >
               <img
                 className="h-6 rounded-full"
-                src={d.iconPath}
-                alt={d.title}
+                src={chain.iconPath}
+                alt={chain.title}
               />
-              <h2 className="text-xl font-bold text-center">{d.title}</h2>
+              <h2 className="text-xl font-bold text-center">{chain.title}</h2>
               <span>
-                {d.chainId} <span className="opacity-20 font-mono">/</span>{" "}
-                {d.currency}
+                {chain.evmChainId}{" "}
+                <span className="opacity-20 font-mono">/</span> {chain.currency}
               </span>
-              <Link
+              <button
                 className="border-black border hover:text-white text-black text-center py-2 w-[50%] rounded-full hover:bg-black"
-                to="/leaderboard"
+                onClick={() => handleChainSelect(chain)}
               >
                 Select
-              </Link>
+              </button>
             </div>
           ))}
         </div>
@@ -237,7 +278,7 @@ function Homepage() {
   );
 }
 
-function Leaderboard({ leaderboard, isLoading }) {
+function Leaderboard({ leaderboard, isLoading, selectedChain }) {
   const [addingWallets, setAddingWallets] = React.useState({});
   const [walletError, setWalletError] = React.useState(null);
   const [walletStatus, setWalletStatus] = React.useState(null);
@@ -255,67 +296,57 @@ function Leaderboard({ leaderboard, isLoading }) {
       setWalletError(null);
       setWalletStatus("Adding network...");
 
-      const chainInfo = {
-        chainId: "sat-bbn-testnet1",
-        chainName: "SatLayer Babylon Testnet",
-        rpc: "https://rpc.sat-bbn-testnet1.satlayer.net",
-        rest: "https://lcd1.sat-bbn-testnet1.satlayer.net",
-        bip44: {
-          coinType: 118,
-        },
-        bech32Config: {
-          bech32PrefixAccAddr: "bbn",
-          bech32PrefixAccPub: "bbnpub",
-          bech32PrefixValAddr: "bbnvaloper",
-          bech32PrefixValPub: "bbnvaloperpub",
-          bech32PrefixConsAddr: "bbnvalcons",
-          bech32PrefixConsPub: "bbnvalconspub",
-        },
-        currencies: [
-          {
-            coinDenom: "BBN",
-            coinMinimalDenom: "ubbn",
-            coinDecimals: 6,
+      if (selectedChain.chainId === "sat-bbn-testnet1") {
+        const chainInfo = {
+          chainId: selectedChain.chainId,
+          chainName: "SatLayer Babylon Testnet",
+          rpc: selectedChain.rpc,
+          rest: selectedChain.rest,
+          bip44: {
+            coinType: 118,
           },
-        ],
-        feeCurrencies: [
-          {
-            coinDenom: "BBN",
-            coinMinimalDenom: "ubbn",
-            coinDecimals: 6,
-            gasPriceStep: {
-              low: 0.01,
-              average: 0.025,
-              high: 0.04,
+          bech32Config: selectedChain.bech32Config,
+          currencies: [
+            {
+              coinDenom: "BBN",
+              coinMinimalDenom: "ubbn",
+              coinDecimals: 6,
             },
+          ],
+          feeCurrencies: [
+            {
+              coinDenom: "BBN",
+              coinMinimalDenom: "ubbn",
+              coinDecimals: 6,
+              gasPriceStep: {
+                low: 0.01,
+                average: 0.025,
+                high: 0.04,
+              },
+            },
+          ],
+          stakeCurrency: {
+            coinDenom: "BBN",
+            coinMinimalDenom: "ubbn",
+            coinDecimals: 6,
           },
-        ],
-        stakeCurrency: {
-          coinDenom: "BBN",
-          coinMinimalDenom: "ubbn",
-          coinDecimals: 6,
-        },
-        features: ["ibc-transfer", "ibc-go"],
-      };
+          features: ["ibc-transfer", "ibc-go"],
+        };
 
-      // Add the chain to Keplr
-      await window.keplr.experimentalSuggestChain(chainInfo);
-      setWalletStatus("Chain added, enabling...");
+        await window.keplr.experimentalSuggestChain(chainInfo);
+        await window.keplr.enable(chainInfo.chainId);
+        const key = await window.keplr.getKey(chainInfo.chainId);
+        setWalletStatus(
+          `Connected to Babylon Network (${shortenAddress(key.bech32Address)})!`
+        );
+      } else {
+        // For EVM chains, just show the RPC info for now
+        setWalletStatus(
+          `RPC URL for ${selectedChain.title}: ${selectedChain.rpc}`
+        );
+      }
 
-      // Enable the chain in Keplr
-      await window.keplr.enable(chainInfo.chainId);
-      setWalletStatus("Getting account...");
-
-      // Get the account to verify everything worked
-      const key = await window.keplr.getKey(chainInfo.chainId);
-      setWalletStatus(
-        `Connected to Babylon Network (${shortenAddress(key.bech32Address)})!`
-      );
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setWalletStatus(null);
-      }, 3000);
+      setTimeout(() => setWalletStatus(null), 3000);
     } catch (error) {
       console.error("Failed to add to Keplr:", error);
       setWalletError(
