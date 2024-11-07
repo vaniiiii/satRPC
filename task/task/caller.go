@@ -69,17 +69,21 @@ func NewCaller() *Caller {
 // No return.
 func (c *Caller) Run() {
 	bvsSquaring := BvsSquaringApi.NewBVSSquaring(c.chainIO)
-	operator := "bbn1d9878dze7npzf7t3vxh8f5y2munj7a8xuy50m8"
+	operators := []string{
+		"bbn1d9878dze7npzf7t3vxh8f5y2munj7a8xuy50m8",
+		"bbn1lkavyt5gqtv4qu8cufwer5rs4uq2a28emvf24t",
+	}
+	currentIndex := 0
 
 	for {
 		bvsSquaring.BindClient(c.bvsContract)
-		resp, err := bvsSquaring.CreateNewTask(context.Background(), operator)
+		resp, err := bvsSquaring.CreateNewTask(context.Background(), operators[currentIndex])
 		if err != nil {
-			fmt.Printf("Error creating task for operator %s: %v\n", operator, err)
+			fmt.Printf("Error creating task for operator %s: %v\n", operators[currentIndex], err)
 			continue
 		}
-		fmt.Printf("Created task for operator %s with tx hash: %s\n", operator, resp.Hash.String())
-
+		fmt.Printf("Created task for operator %s with tx hash: %s\n", operators[currentIndex], resp.Hash.String())
+		currentIndex = (currentIndex + 1) % len(operators)
 		time.Sleep(30 * time.Second)
 	}
 }
