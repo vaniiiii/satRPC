@@ -4,6 +4,7 @@ type Config struct {
 	Chain      Chain
 	Owner      Owner
 	Aggregator Aggregator
+	Rpc        Rpc
 }
 
 type Chain struct {
@@ -24,4 +25,8 @@ type Owner struct {
 
 type Aggregator struct {
 	Url string `json:"url"`
+}
+
+type Rpc struct {
+	Endpoint string `json:endpoint`
 }

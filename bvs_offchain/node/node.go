@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	rio "io"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
@@ -217,6 +218,8 @@ func (n *Node) calcTask(taskId string) (err error) {
 		if err != nil {
 			panic(err)
 		}
+		fmt.Println("Latest Block Number: ", latestBlockNumber)
+		fmt.Println("Latest Block Hash: ", latestBlockHash)
 		err = n.sendAggregator(int64(task), latestBlockNumber, latestBlockHash)
 		if err != nil {
 			panic(err)
@@ -227,14 +230,85 @@ func (n *Node) calcTask(taskId string) (err error) {
 	return
 }
 
-// fetchLatestBlockData retrieves the latest block number and its hash.
+// fetchLatestBlockData retrieves the latest block number and its hash from the configured RPC endpoint.
 //
 // Returns the block number as an int64 and the block hash as a string.
 // If there is an error during the retrieval, an error will be returned.
 func (n *Node) fetchLatestBlockData() (int64, string, error) {
-	latestBlockNumber := int64(123456)
-	latestBlockHash := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
-	return latestBlockNumber, latestBlockHash, nil
+	// JSON-RPC payload to get the latest block number
+	payload := map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "eth_blockNumber",
+		"params":  []interface{}{},
+		"id":      1,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to marshal JSON payload: %v", err)
+	}
+
+	// Send POST request to the RPC endpoint
+	resp, err := http.Post(core.C.Rpc.Endpoint, "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to send request to RPC endpoint: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and parse the response
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to read response body: %v", err)
+	}
+
+	// Extract the block number from the response
+	var result struct {
+		Result string `json:"result"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return 0, "", fmt.Errorf("failed to parse JSON response: %v", err)
+	}
+
+	// Convert the block number from hex string to int64
+	var latestBlockNumber int64
+	if _, err := fmt.Sscanf(result.Result, "0x%x", &latestBlockNumber); err != nil {
+		return 0, "", fmt.Errorf("failed to parse block number: %v", err)
+	}
+
+	// Prepare payload to fetch the block hash by block number
+	payload = map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "eth_getBlockByNumber",
+		"params":  []interface{}{result.Result, false},
+		"id":      1,
+	}
+	data, err = json.Marshal(payload)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to marshal JSON payload for block hash: %v", err)
+	}
+
+	// Send POST request to get the block details
+	resp, err = http.Post(core.C.Rpc.Endpoint, "application/json", bytes.NewBuffer(data))
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to send request for block hash: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return 0, "", fmt.Errorf("failed to read response body for block hash: %v", err)
+	}
+
+	// Extract the block hash from the response
+	var blockResult struct {
+		Result struct {
+			Hash string `json:"hash"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(body, &blockResult); err != nil {
+		return 0, "", fmt.Errorf("failed to parse block hash response: %v", err)
+	}
+
+	return latestBlockNumber, blockResult.Result.Hash, nil
 }
 
 // sendAggregator sends the task result to the aggregator.
