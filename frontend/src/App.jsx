@@ -282,7 +282,7 @@ function Homepage() {
 }
 
 function Leaderboard({ leaderboard, isLoading }) {
-  const [addingWallet, setAddingWallet] = React.useState(false);
+  const [addingWallets, setAddingWallets] = React.useState({});
   const [walletError, setWalletError] = React.useState(null);
   const [walletStatus, setWalletStatus] = React.useState(null);
 
@@ -295,11 +295,10 @@ function Leaderboard({ leaderboard, isLoading }) {
     }
 
     try {
-      setAddingWallet(true);
+      setAddingWallets((prev) => ({ ...prev, [operator]: true }));
       setWalletError(null);
       setWalletStatus("Adding network...");
 
-      // Keplr chain information format
       const chainInfo = {
         chainId: "sat-bbn-testnet1",
         chainName: "SatLayer Babylon Testnet",
@@ -367,7 +366,7 @@ function Leaderboard({ leaderboard, isLoading }) {
         error.message || "Failed to add network to Keplr. Please try again."
       );
     } finally {
-      setAddingWallet(false);
+      setAddingWallets((prev) => ({ ...prev, [operator]: false }));
     }
   };
 
@@ -454,15 +453,11 @@ function Leaderboard({ leaderboard, isLoading }) {
                         "https://rpc.sat-bbn-testnet1.satlayer.net"
                       )
                     }
-                    disabled={addingWallet}
+                    disabled={addingWallets[l[0]]}
                     className={`border-black border text-black text-center rounded-full px-2 py-1 
-						${
-              addingWallet
-                ? "opacity-50 cursor-not-allowed"
-                : "hover:text-white  hover:bg-black"
-            }`}
+						${addingWallets[l[0]] ? "opacity-50 cursor-not-allowed" : "hover:text-white hover:bg-black"}`}
                   >
-                    {addingWallet ? (
+                    {addingWallets[l[0]] ? (
                       <span className="flex items-center gap-2">
                         <svg
                           className="animate-spin h-4 w-4 text-blue-500"
