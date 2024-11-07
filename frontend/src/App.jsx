@@ -13,7 +13,7 @@ const OPERATORS = [
 
 const CHAINS = [
   {
-    title: "Babylon Mainnet",
+    title: "Babylon",
     chainId: 100,
     currency: "BBN",
     iconPath: "/babylon.webp",
