@@ -261,6 +261,7 @@ function Leaderboard({ leaderboard, isLoading, selectedChain }) {
   const [addingWallets, setAddingWallets] = React.useState({});
   const [walletError, setWalletError] = React.useState(null);
   const [walletStatus, setWalletStatus] = React.useState(null);
+  const [, setLocation] = useLocation();
 
   const handleAddToWallet = async (operator, operatorRpc) => {
     if (!window.keplr) {
@@ -352,14 +353,22 @@ function Leaderboard({ leaderboard, isLoading, selectedChain }) {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <img
-              className="h-5 sm:h-6 rounded-full"
-              src={selectedChain.iconPath}
-              alt={selectedChain.title}
-            />
-            <span className="font-bold text-sm sm:text-base">
-              {selectedChain.title}
-            </span>
+            <button
+              onClick={() => setLocation("/")}
+              className="text-sm border border-black/10 rounded-full px-3 py-1 hover:bg-black hover:text-white transition-colors whitespace-nowrap"
+            >
+              ← Change Network
+            </button>
+            <div className="flex items-center gap-2">
+              <img
+                className="h-5 sm:h-6 rounded-full"
+                src={selectedChain.iconPath}
+                alt={selectedChain.title}
+              />
+              <span className="font-bold text-sm sm:text-base">
+                {selectedChain.title}
+              </span>
+            </div>
           </div>
         </div>
       </div>
