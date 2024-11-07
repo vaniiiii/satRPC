@@ -11,50 +11,6 @@ const OPERATORS = [
   "bbn1d9878dze7npzf7t3vxh8f5y2munj7a8xuy50m8",
 ];
 
-const BABYLON_TESTNET_CONFIG = {
-  chainId: "sat-bbn-testnet1",
-  chainName: "SatLayer Babylon Testnet",
-  rpc: "https://rpc.sat-bbn-testnet1.satlayer.net",
-  rest: "https://lcd1.sat-bbn-testnet1.satlayer.net",
-  bip44: {
-    coinType: 118,
-  },
-  bech32Config: {
-    bech32PrefixAccAddr: "bbn",
-    bech32PrefixAccPub: "bbnpub",
-    bech32PrefixValAddr: "bbnvaloper",
-    bech32PrefixValPub: "bbnvaloperpub",
-    bech32PrefixConsAddr: "bbnvalcons",
-    bech32PrefixConsPub: "bbnvalconspub",
-  },
-  currencies: [
-    {
-      coinDenom: "BBN",
-      coinMinimalDenom: "ubbn",
-      coinDecimals: 6,
-      coingeckoId: "babylon-chain",
-    },
-  ],
-  feeCurrencies: [
-    {
-      coinDenom: "BBN",
-      coinMinimalDenom: "ubbn",
-      coinDecimals: 6,
-      gasPriceStep: {
-        low: 0.01,
-        average: 0.025,
-        high: 0.04,
-      },
-    },
-  ],
-  stakeCurrency: {
-    coinDenom: "BBN",
-    coinMinimalDenom: "ubbn",
-    coinDecimals: 6,
-  },
-  features: ["ibc-transfer", "ibc-go"],
-};
-
 const CHAINS = [
   {
     title: "Babylon Mainnet",
