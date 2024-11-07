@@ -39,6 +39,7 @@ func GetTaskData(c *gin.Context) {
 
 	// Return performer's data
 	c.JSON(http.StatusOK, gin.H{
-		"result": taskVerification.Performer.Result,
+		"result":  taskVerification.Performer.Result,
+		"address": taskVerification.Performer.Address,
 	})
 }
