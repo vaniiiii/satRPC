@@ -13,4 +13,8 @@ const (
 	PkTaskQueue    = "task_queue"
 	PkTaskResult   = "task_result:"
 	PkTaskFinished = "task_finished:"
+
+	// Consensus configuration
+	MinimumAttesters   = 1
+	ConsensusThreshold = 66 // Percentage required for consensus
 )
