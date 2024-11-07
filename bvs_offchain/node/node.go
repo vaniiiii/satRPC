@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	rio "io"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
@@ -303,85 +302,42 @@ func (n *Node) calcTask(taskId string) (err error) {
 	return nil
 }
 
-// fetchLatestBlockData retrieves the latest block number and its hash from the configured RPC endpoint.
+// fetchLatestBlockData retrieves the latest block number and its hash from the configured Babylon RPC endpoint.
 //
 // Returns the block number as an int64 and the block hash as a string.
 // If there is an error during the retrieval, an error will be returned.
 func (n *Node) fetchLatestBlockData() (int64, string, error) {
-	// JSON-RPC payload to get the latest block number
-	payload := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"method":  "eth_blockNumber",
-		"params":  []interface{}{},
-		"id":      1,
-	}
-	data, err := json.Marshal(payload)
+	// First, get the status to find the latest block height
+	resp, err := http.Get(fmt.Sprintf("%s/status", core.C.Rpc.Endpoint))
 	if err != nil {
-		return 0, "", fmt.Errorf("failed to marshal JSON payload: %v", err)
-	}
-
-	// Send POST request to the RPC endpoint
-	resp, err := http.Post(core.C.Rpc.Endpoint, "application/json", bytes.NewBuffer(data))
-	if err != nil {
-		return 0, "", fmt.Errorf("failed to send request to RPC endpoint: %v", err)
+		return 0, "", fmt.Errorf("failed to get status: %v", err)
 	}
 	defer resp.Body.Close()
 
-	// Read and parse the response
-	body, err := ioutil.ReadAll(resp.Body)
+	var statusResp core.StatusResponse
+	if err := json.NewDecoder(resp.Body).Decode(&statusResp); err != nil {
+		return 0, "", fmt.Errorf("failed to decode status response: %v", err)
+	}
+
+	// Convert block height from string to int64
+	latestHeight, err := strconv.ParseInt(statusResp.Result.SyncInfo.LatestBlockHeight, 10, 64)
 	if err != nil {
-		return 0, "", fmt.Errorf("failed to read response body: %v", err)
+		return 0, "", fmt.Errorf("failed to parse block height: %v", err)
 	}
 
-	// Extract the block number from the response
-	var result struct {
-		Result string `json:"result"`
-	}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return 0, "", fmt.Errorf("failed to parse JSON response: %v", err)
-	}
-
-	// Convert the block number from hex string to int64
-	var latestBlockNumber int64
-	if _, err := fmt.Sscanf(result.Result, "0x%x", &latestBlockNumber); err != nil {
-		return 0, "", fmt.Errorf("failed to parse block number: %v", err)
-	}
-
-	// Prepare payload to fetch the block hash by block number
-	payload = map[string]interface{}{
-		"jsonrpc": "2.0",
-		"method":  "eth_getBlockByNumber",
-		"params":  []interface{}{result.Result, false},
-		"id":      1,
-	}
-	data, err = json.Marshal(payload)
+	// Now fetch the block details using the height
+	blockResp, err := http.Get(fmt.Sprintf("%s/block?height=%d", core.C.Rpc.Endpoint, latestHeight))
 	if err != nil {
-		return 0, "", fmt.Errorf("failed to marshal JSON payload for block hash: %v", err)
+		return 0, "", fmt.Errorf("failed to get block: %v", err)
+	}
+	defer blockResp.Body.Close()
+
+	var block core.BlockResponse
+	if err := json.NewDecoder(blockResp.Body).Decode(&block); err != nil {
+		return 0, "", fmt.Errorf("failed to decode block response: %v", err)
 	}
 
-	// Send POST request to get the block details
-	resp, err = http.Post(core.C.Rpc.Endpoint, "application/json", bytes.NewBuffer(data))
-	if err != nil {
-		return 0, "", fmt.Errorf("failed to send request for block hash: %v", err)
-	}
-	defer resp.Body.Close()
-
-	body, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return 0, "", fmt.Errorf("failed to read response body for block hash: %v", err)
-	}
-
-	// Extract the block hash from the response
-	var blockResult struct {
-		Result struct {
-			Hash string `json:"hash"`
-		} `json:"result"`
-	}
-	if err := json.Unmarshal(body, &blockResult); err != nil {
-		return 0, "", fmt.Errorf("failed to parse block hash response: %v", err)
-	}
-
-	return latestBlockNumber, blockResult.Result.Hash, nil
+	return latestHeight, block.Result.BlockID.Hash, nil
 }
 
 func (n *Node) validatePerformerData(performerData PerformerData, expectedAddress string) (bool, error) {
@@ -404,34 +360,22 @@ func (n *Node) validatePerformerData(performerData PerformerData, expectedAddres
 	}
 
 	// Verify block exists and hash matches
-	payload := map[string]interface{}{
-		"jsonrpc": "2.0",
-		"method":  "eth_getBlockByNumber",
-		"params":  []interface{}{fmt.Sprintf("0x%x", performerBlockNumber), false},
-		"id":      1,
-	}
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return false, fmt.Errorf("failed to marshal JSON payload: %v", err)
-	}
-
-	resp, err := http.Post(core.C.Rpc.Endpoint, "application/json", bytes.NewBuffer(data))
+	resp, err := http.Get(fmt.Sprintf("%s/block?height=%d", core.C.Rpc.Endpoint, performerBlockNumber))
 	if err != nil {
 		return false, fmt.Errorf("failed to fetch block data: %v", err)
 	}
 	defer resp.Body.Close()
 
-	var blockResult struct {
-		Result struct {
-			Hash string `json:"hash"`
-		} `json:"result"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&blockResult); err != nil {
+	var blockResponse core.BlockResponse
+	if err := json.NewDecoder(resp.Body).Decode(&blockResponse); err != nil {
 		return false, fmt.Errorf("failed to decode block data: %v", err)
 	}
 
-	isBlockValid := blockResult.Result.Hash == performerBlockHash
-	isBlockRecent := currentBlockNumber-performerBlockNumber <= 10
+	// Get the hash from the block response
+	actualBlockHash := blockResponse.Result.BlockID.Hash
+
+	isBlockValid := actualBlockHash == performerBlockHash
+	isBlockRecent := currentBlockNumber-performerBlockNumber <= 10 // You might want to adjust this threshold
 	isCorrectPerformer := performerData.Address == expectedAddress
 
 	return isBlockValid && isBlockRecent && isCorrectPerformer, nil

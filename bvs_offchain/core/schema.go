@@ -1,5 +1,7 @@
 package core
 
+import "time"
+
 type Config struct {
 	Chain      Chain
 	Owner      Owner
@@ -29,4 +31,31 @@ type Aggregator struct {
 
 type Rpc struct {
 	Endpoint string `json:endpoint`
+}
+
+type StatusResponse struct {
+	JsonRPC string `json:"jsonrpc"`
+	Result  struct {
+		SyncInfo struct {
+			LatestBlockHeight string    `json:"latest_block_height"`
+			LatestBlockHash   string    `json:"latest_block_hash"`
+			LatestBlockTime   time.Time `json:"latest_block_time"`
+		} `json:"sync_info"`
+	} `json:"result"`
+}
+
+type BlockResponse struct {
+	JsonRPC string `json:"jsonrpc"`
+	Result  struct {
+		BlockID struct {
+			Hash string `json:"hash"`
+		} `json:"block_id"`
+		Block struct {
+			Header struct {
+				Height  string    `json:"height"`
+				Time    time.Time `json:"time"`
+				ChainID string    `json:"chain_id"`
+			} `json:"header"`
+		} `json:"block"`
+	} `json:"result"`
 }
