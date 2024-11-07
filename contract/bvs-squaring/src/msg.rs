@@ -27,4 +27,7 @@ pub enum QueryMsg {
 
     #[returns(i64)]
     GetOperatorScore { operator: Addr },
+
+    #[returns(u64)]
+    GetOperatorMaxScore { operator: Addr },
 }
