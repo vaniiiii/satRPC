@@ -223,13 +223,13 @@ function Homepage({ onChainSelect }) {
   };
 
   return (
-    <div className="grid grid-cols-2 h-screen">
-      <div className="bg-[#FFB800] flex flex-col items-center justify-center">
-        <div className="">
-          <div className="flex flex-col items-center justify-center gap-2 mt-[-100px]">
+    <div className="flex flex-col lg:grid lg:grid-cols-2 min-h-screen">
+      <div className="bg-[#FFB800] flex flex-col items-center justify-center p-8 lg:p-0">
+        <div className="py-12 lg:py-0">
+          <div className="flex flex-col items-center justify-center gap-2">
             <img className="w-[40%]" src="satlayer.svg" alt="" />
             <h1 className="font-bold text-4xl text-[#000000]">satRPC</h1>
-            <div className="w-[60%] text-center flex flex-col gap-2">
+            <div className="w-full lg:w-[60%] text-center flex flex-col gap-2">
               <p>
                 SatRPC is an BVS that enables the creation and coordination of a
                 decentralized, secure, and reliable RPC network for any chain.
@@ -248,7 +248,7 @@ function Homepage({ onChainSelect }) {
           <h2 className="font-bold text-lg -mb-1">Networks</h2>
           <span className="opacity-40">Select a network</span>
         </div>
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-4">
           {CHAINS.map((chain) => (
             <div
               key={chain.chainId}
@@ -265,7 +265,7 @@ function Homepage({ onChainSelect }) {
                 <span className="opacity-20 font-mono">/</span> {chain.currency}
               </span>
               <button
-                className="border-black border hover:text-white text-black text-center py-2 w-[50%] rounded-full hover:bg-black"
+                className="border-black border hover:text-white text-black text-center py-2 w-full sm:w-[50%] rounded-full hover:bg-black"
                 onClick={() => handleChainSelect(chain)}
               >
                 Select
@@ -480,7 +480,7 @@ function Leaderboard({ leaderboard, isLoading, selectedChain }) {
       {isLoading && (
         <div className="bg-gray-100/20 p-4 flex items-center justify-center">
           <svg
-            className="animate-spin -ml-1 mr-3 h-5 w-5 text-green-500"
+            className="animate-spin -ml-1 mr-3 h-5 w-5"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
