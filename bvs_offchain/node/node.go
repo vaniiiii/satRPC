@@ -221,6 +221,8 @@ func (n *Node) calcTask(taskId string) (err error) {
 		if err != nil {
 			panic(err)
 		}
+	} else {
+		fmt.Println("Skipping as not selected as performer")
 	}
 	return
 }
