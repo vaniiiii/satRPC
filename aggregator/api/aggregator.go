@@ -62,20 +62,24 @@ func Aggregator(c *gin.Context) {
 		return
 	}
 
-	resultParts := strings.Split(payload.Result, "-")
-	if len(resultParts) != 2 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid result format"})
-		return
+	// Validate result format based on role
+	if payload.Role == core.RolePerformer {
+		resultParts := strings.Split(payload.Result, "-")
+		if len(resultParts) != 2 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid result format for performer"})
+			return
+		}
+		latestBlockNumber := resultParts[0]
+		latestBlockHash := resultParts[1]
+		fmt.Printf("Latest Block Number: %s\n", latestBlockNumber)
+		fmt.Printf("Latest Block Hash: %s\n", latestBlockHash)
+	} else {
+		if payload.Result != "true" && payload.Result != "false" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid result format for attester"})
+			return
+		}
+		fmt.Printf("Attester validation result: %s\n", payload.Result)
 	}
-
-	// @reminder Add verification here
-	latestBlockNumber := resultParts[0]
-	latestBlockHash := resultParts[1]
-	fmt.Printf("Latest Block Number: %s\n", latestBlockNumber)
-	fmt.Printf("Latest Block Hash: %s\n", latestBlockHash)
-
-	// For now let's hardocde it to 1(true)
-	// var verificationResult int64 = 1
 
 	msgPayload := fmt.Sprintf("%s-%d-%d-%s", core.C.Chain.BvsHash, payload.Timestamp, payload.TaskId, payload.Result)
 	msgBytes := []byte(msgPayload)
@@ -148,7 +152,18 @@ func Aggregator(c *gin.Context) {
 	}
 
 	// Only process the task if we have both performer and enough attesters
-	if taskVerification.Performer != nil && len(taskVerification.Attesters) >= 1 { // @reminder Move this to constant
+	if taskVerification.Performer != nil && len(taskVerification.Attesters) >= 1 {
+		// Count positive validations
+		positiveVotes := 0
+		// _totalVotes := len(taskVerification.Attesters)
+
+		for _, attester := range taskVerification.Attesters {
+			if attester.Result == "true" {
+				positiveVotes++
+			}
+		}
+
+		// For now, always set result to 1 (mocked verification)
 		task := core.Task{
 			TaskId: payload.TaskId,
 			TaskResult: core.TaskResult{
