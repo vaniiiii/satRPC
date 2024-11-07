@@ -32,7 +32,7 @@ type Node struct {
 
 type Payload struct {
 	TaskId    int64  `json:"taskID"`
-	Result    int64  `json:"result"`
+	Result    string `json:"result"`
 	Timestamp int64  `json:"timestamp"`
 	Signature string `json:"signature"`
 	PubKey    string `json:"pubKey"`
@@ -92,6 +92,7 @@ func NewNode() *Node {
 // ctx is the context for the Run function.
 // No return value.
 func (n *Node) Run(ctx context.Context) {
+	// @reminder ask what this is doing?
 	if err := n.syncStateBank(ctx); err != nil {
 		panic(err)
 	}
@@ -195,50 +196,48 @@ func (n *Node) monitorDriver(ctx context.Context) (err error) {
 // Returns an error if there is an issue with the calculation or sending process.
 func (n *Node) calcTask(taskId string) (err error) {
 	stateKey := fmt.Sprintf("taskId.%s", taskId)
-	fmt.Printf("stateKey: %s\n", stateKey)
 	value, err := n.stateBank.GetWasmUpdateState(stateKey)
 	if err != nil {
 		return
 	}
-	input, err := strconv.Atoi(value)
 	task, err := strconv.Atoi(taskId)
 	if err != nil {
 		fmt.Println("format err:", err)
 		return
 	}
-	result := n.square(int64(input))
-	err = n.sendAggregator(int64(task), result)
-	if err != nil {
-		panic(err)
+	if value != "" { // change to if value == n.pubKeyStr
+		latestBlockNumber, latestBlockHash, err := n.fetchLatestBlockData()
+		if err != nil {
+			return err
+		}
+		err = n.sendAggregator(int64(task), latestBlockNumber, latestBlockHash)
+		if err != nil {
+			panic(err)
+		}
 	}
 	return
 }
 
-// square calculates the square of a given integer.
+// fetchLatestBlockData retrieves the latest block number and its hash.
 //
-// input is the number to be squared.
-// Returns the squared result as an int64.
-// square calculates the square of a given integer.
-//
-// input is the number to be squared.
-// Returns the squared result as an int64.
-func (n *Node) square(input int64) int64 {
-	return input * input
+// Returns the block number as an int64 and the block hash as a string.
+// If there is an error during the retrieval, an error will be returned.
+func (n *Node) fetchLatestBlockData() (int64, string, error) {
+	latestBlockNumber := int64(123456)
+	latestBlockHash := "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+	return latestBlockNumber, latestBlockHash, nil
 }
 
 // sendAggregator sends the task result to the aggregator.
 //
 // taskId is the unique identifier of the task.
-// result is the calculated result of the task.
+// latestBlockNumber is the number of the latest block in the chain.
+// latestBlockHash is the hash of the latest block in the chain.
 // Returns an error if there is an issue with the sending process.
-// sendAggregator sends the task result to the aggregator.
-//
-// taskId is the unique identifier of the task.
-// result is the calculated result of the task.
-// Returns an error if there is an issue with the sending process.
-func (n *Node) sendAggregator(taskId int64, result int64) (err error) {
+func (n *Node) sendAggregator(taskId int64, latestBlockNumber int64, latestBlockHash string) (err error) {
 	nowTs := time.Now().Unix()
-	msgPayload := fmt.Sprintf("%s-%d-%d-%d", core.C.Chain.BvsHash, nowTs, taskId, result)
+	result := fmt.Sprintf("%d-%s", latestBlockNumber, latestBlockHash)
+	msgPayload := fmt.Sprintf("%s-%d-%d-%s", core.C.Chain.BvsHash, nowTs, taskId, result)
 	core.L.Info(fmt.Sprintf("msgPayload: %s\n", msgPayload))
 	signature, err := n.chainIO.GetSigner().Sign([]byte(msgPayload))
 
