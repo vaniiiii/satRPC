@@ -58,6 +58,8 @@ The decentralized RPC process follows a structured approach to ensure data accur
 
 Built using Babylon, SatLayer, CosmWasm, CosmJs, and Vite 🛠️
 
+![Alt text](satRPC_schema.png "satRpc Schema")
+
 ### Components
 
 - **Babylon Node**: Core infrastructure required for network operation and RPC endpoint provision
