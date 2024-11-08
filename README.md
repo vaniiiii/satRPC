@@ -19,8 +19,6 @@
   - [Start the System](#start-the-system)
 - [Conclusion](#conclusion)
 
-[Rest of your README content remains exactly the same, just remove the emojis from the heading IDs]
-
 ## Introduction
 
 Welcome to the satRPC project! Using Babylon and SatLayer Stack, we're building a decentralized RPC network that helps strengthen blockchain infrastructure. By leveraging Bitcoin restaking through SatLayer and Babylon, we're bringing Bitcoin's robust security model to RPC services, making them more decentralized and trustless. Our network provides reliable access to blockchain data while maintaining the security guarantees that Bitcoin's offers. 🌟
